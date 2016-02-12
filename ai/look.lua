@@ -1,12 +1,20 @@
 
 function Look()
-	if HasEnemiesNear and ((IsReloading() and Behavior.AimWhenReloading) or not IsReloading()) and not Idle then		
-		LookAtEx(NearestEnemy)
+	if IsPlantingBomb then
+		return
+	end
+	
+	if IsDefusingBomb then
+		return
+	end
+
+	if HasVictim and ((IsReloading() and Behavior.AimWhenReloading) or not IsReloading()) and not Idle then		
+		LookAtEx(Victim)
 		return
 	end
 	
 	if NeedToDestroy then
-		LookAtEx(Vec3Unpack(BreakablePosition))
+		LookAtEx(BreakablePosition:Unpack())
 		return
 	end
 	
@@ -16,17 +24,17 @@ function Look()
 		PrimitiveLook()
 	end
 	
-	LookAtEx(Vec3Unpack(LookPoint))
+	LookAtEx(LookPoint:Unpack())
 end
 
 function PrimitiveLook()
-	V = Vec3.New(GetVelocity())
+	local V = Vec3.New(GetVelocity())
 		
-	if Vec3Length(V) == 0 then
+	if V:Length() == 0 then
 		return
 	end
 	
-	LookPoint = Origin + V
+	LookPoint = Vec3.New(GetOrigin()) + V
 end
 
 function ObjectiveLook()
@@ -34,11 +42,11 @@ function ObjectiveLook()
 		return
 	end
 	
-	if not IsAreaChanged then
+	if not IsAreaChanged and not IsSlowThink then
 		return
 	end
 	
-	ViewArea = nil
+	local ViewArea = nil
 	
 	for I = 0, GetNavAreaApproachesCount(Area) - 1 do
 		for J = #Chain, ChainIndex, -1 do

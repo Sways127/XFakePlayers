@@ -2,7 +2,7 @@
 -- movement utils
 
 function HasChain()
-	if type(Chain) ~= "table" then
+	if type(Chain) ~= 'table' then
 		return false
 	else
 		return #Chain > 0
@@ -23,46 +23,41 @@ function SlowDuckJump()
 	SlowJumpTime = Ticks()
 end
 
-function GetScenarioName(AScenario)
-	if AScenario == ScenarioType.Walking then
-		return "Walking"
-	elseif AScenario == ScenarioType.PlantingBomb then
-		return "Planting Bomb"
-	elseif AScenario == ScenarioType.DefusingBomb then
-		return "Defusing Bomb"
-	elseif AScenario == ScenarioType.SearchingBomb then
-		return "Searching Bomb"
-	else
-		return "GetScenarioName: unknown scenario " .. AScenario
-	end
-end
-
 function UpdateScenario()
 	Scenario = ScenarioType.Walking
+	
+	if CanCollecting then
+		Scenario = ScenarioType.Collecting
+		return
+	end
 	
 	if IsEndOfRound then
 		return
 	end
 	
-	LastScenarioChangeTime = Ticks()
-	
-	if (GetGameDir() == "cstrike") or (GetGameDir() == "czero") then
-		if GetPlayerTeam(GetClientIndex()) == "TERRORIST" then
+	if (GetGameDir() == 'cstrike') or (GetGameDir() == 'czero') then
+		if GetPlayerTeam(GetClientIndex()) == 'TERRORIST' then
 			
 			if IsWeaponExists(CS_WEAPON_C4) then
 				Scenario = ScenarioType.PlantingBomb
 			elseif IsBombDropped then
-				Scenario = ScenarioType.SearchingBomb
+				Scenario = ScenarioType.SearchingBomb 
 			end
 		
-		elseif GetPlayerTeam(GetClientIndex()) == "CT" then
+		elseif GetPlayerTeam(GetClientIndex()) == 'CT' then
 			
 			if IsBombPlanted then
 				Scenario = ScenarioType.DefusingBomb
 			end
 			
 		end
+	elseif GetGameDir() == 'valve' then
+		--Scenario = ScenarioType.SearchingItems
 	end
+end
+
+function ResetScenarion()
+	Scenario = ScenarioType.None
 end
 
 -- weapon utils	
@@ -71,15 +66,17 @@ function FindCurrentWeapon()
 	CurrentWeapon = GetWeaponByAbsoluteIndex(GetWeaponAbsoluteIndex())
 
 	if (LastKnownWeapon ~= CurrentWeapon) and (CurrentWeapon ~= 0) and (LastKnownWeapon ~= 0) then
-		print("choosed: " .. GetWeaponNameEx(CurrentWeapon))
+		print('choosed: ' .. GetWeaponNameEx(CurrentWeapon))
 	end
 
 	LastKnownWeapon = CurrentWeapon
 end
 
 function FindHeaviestWeaponInSlot(ASlot)
-	Weapon = nil
-	Weight = -1
+	local Weapon = nil
+	local Weight = -1
+	
+	-- TODO: add ammo checking
 	
 	for I = 0, GetWeaponsCount() - 1 do
 		if IsWeaponExists(GetWeaponIndex(I)) then
@@ -96,8 +93,8 @@ function FindHeaviestWeaponInSlot(ASlot)
 end
 
 function FindHeaviestWeapon()
-	Weapon = nil
-	Weight = -1
+	local Weapon = nil
+	local Weight = -1
 	
 	for I = 0, GetWeaponsCount() - 1 do
 		if IsWeaponExists(GetWeaponIndex(I)) then
@@ -112,8 +109,8 @@ function FindHeaviestWeapon()
 end
 
 function FindHeaviestUsableWeapon(IsInstant)
-	Weapon = nil
-	Weight = -1
+	local Weapon = nil
+	local Weight = -1
 	
 	for I = 0, GetWeaponsCount() - 1 do
 		if IsWeaponExists(GetWeaponIndex(I)) then
@@ -178,39 +175,39 @@ function CanUseWeapon(AWeapon, IsInstant)
 		return false
 	end
 	
-	Clip = GetWeaponClip(AWeapon)
-	PrimaryAmmo = GetWeaponPrimaryAmmo(AWeapon)
-	SecondaryAmmo = GetWeaponSecondaryAmmo(AWeapon)
+	local Clip = GetWeaponClip(AWeapon)
+	local PrimaryAmmo = GetWeaponPrimaryAmmo(AWeapon)
+	local SecondaryAmmo = GetWeaponSecondaryAmmo(AWeapon)
 	
 	if Clip ~= WEAPON_NOCLIP then -- weapon can be reloaded
 		if IsInstant then
-			return(Clip > 0)
+			return Clip > 0
 		else
-			return(Clip + PrimaryAmmo + SecondaryAmmo > 0)
+			return Clip + PrimaryAmmo + SecondaryAmmo > 0
 		end
 	else
-		return(PrimaryAmmo > 0)
+		return PrimaryAmmo > 0
 	end
 end
 
 function GetWeaponMaxClip(AWeapon)
-	if (GetGameDir() == "cstrike") or (GetGameDir() == "czero") then
+	if (GetGameDir() == 'cstrike') or (GetGameDir() == 'czero') then
 		return CSWeapons[GetWeaponIndex(AWeapon)].MaxClip
-	elseif GetGameDir() == "valve" then
+	elseif GetGameDir() == 'valve' then
 		return HLWeapons[GetWeaponIndex(AWeapon)].MaxClip
 	else
-		print "GetWeaponMaxClip(AWeapon) does not support this game modification"
+		print 'GetWeaponMaxClip(AWeapon) does not support this game modification'
 		return nil
 	end
 end
 
 function GetWeaponWeight(AWeapon)
-	if (GetGameDir() == "cstrike") or (GetGameDir() == "czero") then
+	if (GetGameDir() == 'cstrike') or (GetGameDir() == 'czero') then
 		return CSWeapons[GetWeaponIndex(AWeapon)].Weight
-	elseif GetGameDir() == "valve" then
+	elseif GetGameDir() == 'valve' then
 		return HLWeapons[GetWeaponIndex(AWeapon)].Weight
 	else
-		print "GetWeaponWeight(AWeapon) does not support this game modification"
+		print 'GetWeaponWeight(AWeapon) does not support this game modification'
 		return nil
 	end	
 end
@@ -220,7 +217,7 @@ function IsWeaponFullyLoaded(AWeapon)
 		return true
 	end
  
-	Clip = GetWeaponClip(AWeapon)
+	local Clip = GetWeaponClip(AWeapon)
 	
 	if Clip == WEAPON_NOCLIP then
 		return true
@@ -233,12 +230,28 @@ function IsWeaponFullyLoaded(AWeapon)
 	return Clip >= GetWeaponMaxClip(AWeapon)
 end
 
+function IsWeaponFullPrimaryAmmo(AWeapon)
+	return GetWeaponPrimaryAmmo(AWeapon) >= GetWeaponPrimaryAmmoMaxAmount(AWeapon)
+end
+
+function IsWeaponFullPrimaryAmmoAbs(AIndex)
+	return IsWeaponFullPrimaryAmmo(GetWeaponByAbsoluteIndex(AIndex))
+end
+
+function IsWeaponFullSecondaryAmmo(AWeapon)
+	return GetWeaponSecondaryAmmo(AWeapon) >= GetWeaponSecondaryAmmoMaxAmount(AWeapon)
+end
+
+function IsWeaponFullSecondaryAmmoAbs(AIndex)
+	return IsWeaponFullSecondaryAmmo(GetWeaponByAbsoluteIndex(AIndex))
+end
+
 function NeedReloadWeapon(AWeapon)
 	return not IsWeaponFullyLoaded(AWeapon)
 end
 
 function CanReload()
-	-- TODO
+	-- TODO: write something here
 	
 	return true
 end
@@ -260,6 +273,7 @@ function Behavior.Randomize()
 	Behavior.ReloadDelay = math.random(1000, 10000)
 	Behavior.DuckWhenPlantingBomb = Chance(50)
 	Behavior.DuckWhenDefusingBomb = Chance(50)
+	Behavior.Psycho = Chance(5)
 end
 
 function MyHeight()
@@ -272,23 +286,23 @@ end
 
 function IsEnemy(player_index)
 	if IsTeamPlay() --[[and not FriendlyFire]] then
-		if (GetGameDir() == "tfc") or (GetGameDir() == "dod") then
+		if (GetGameDir() == 'tfc') or (GetGameDir() == 'dod') then
 			-- dod & tfc are not using absolute team names, we need to compare team indexes from entities array
 		
-			T1 = GetEntityTeam(GetClientIndex() + 1)
-			T2 = GetEntityTeam(player_index + 1)
+			local T1 = GetEntityTeam(GetClientIndex() + 1)
+			local T2 = GetEntityTeam(player_index + 1)
 			
 			return T1 ~= T2
 		else 		
 			-- we can compare team names from players array for all other mods
 		
-			T1 = GetPlayerTeam(GetClientIndex())
-			T2 = GetPlayerTeam(player_index)
+			local T1 = GetPlayerTeam(GetClientIndex())
+			local T2 = GetPlayerTeam(player_index)
 			
 			return T1 ~= T2
 		end
 	else
-		if GetGameDir() == "svencoop" then
+		if GetGameDir() == 'svencoop' then
 			return false
 		else
 			return true
@@ -313,56 +327,120 @@ function FindEnemiesAndFriends()
 	NearestLeaderPlayer = nil
 	PlayersNearCount = 0
 	
-	EnemyDistance = MAX_UNITS
-	EnemyKills = 0
+	local EnemyDistance = MAX_UNITS
+	local EnemyKills = 0
 
-	FriendDistance = MAX_UNITS
-	FriendKills = 0
+	local FriendDistance = MAX_UNITS
+	local FriendKills = 0
 	
-	PlayerDistance = MAX_UNITS
-	PlayerKills = 0
-		
+	local PlayerDistance = MAX_UNITS
+	local PlayerKills = 0
+
+
+	NearestVisibleEnemy = nil;
+	NearestVisibleLeaderEnemy = nil;
+	VisibleEnemiesNearCount = 0;
+
+	NearestVisibleFriend = nil;
+	NearestVisibleLeaderFriend = nil;
+	VisibleFriendsNearCount = 0;
+	
+	NearestVisiblePlayer = nil
+	NearestVisibleLeaderPlayer = nil
+	VisiblePlayersNearCount = 0
+	
+	local VisibleEnemyDistance = MAX_UNITS
+	local VisibleEnemyKills = 0
+
+	local VisibleFriendDistance = MAX_UNITS
+	local VisibleFriendKills = 0
+	
+	local VisiblePlayerDistance = MAX_UNITS
+	local VisiblePlayerKills = 0		
+	
+	
 	for I = 1, GetPlayersCount() do
 		if I ~= GetClientIndex() + 1 then
-			if IsEntityActive(I) then
+			if --[[IsEntityActive(I)]] GetPlayerOrigin(I - 1) ~= 0 then -- player may be on radar
 				if IsPlayerAlive(I - 1) then
-					if (HasWorld() and IsVisible(I)) or not HasWorld() then
-						PlayersNearCount = PlayersNearCount + 1
+					
+					PlayersNearCount = PlayersNearCount + 1
+					
+					if GetDistance(I) < PlayerDistance then
+						PlayerDistance = GetDistance(I)
+						NearestPlayer = I
+					end
 						
-						if GetDistance(I) < PlayerDistance then
-							PlayerDistance = GetDistance(I)
-							NearestPlayer = I
-						end
-							
-						if GetPlayerKills(I - 1) > PlayerKills then
-							PlayerKills = GetPlayerKills(I - 1)
-							NearestLeaderPlayer = I
-						end
+					if GetPlayerKills(I - 1) > PlayerKills then
+						PlayerKills = GetPlayerKills(I - 1)
+						NearestLeaderPlayer = I
+					end
 
-						if IsEnemy(I - 1) then
-							EnemiesNearCount = EnemiesNearCount + 1
-						
-							if GetDistance(I) < EnemyDistance then
-								EnemyDistance = GetDistance(I)
-								NearestEnemy = I
+					if IsEnemy(I - 1) then
+						EnemiesNearCount = EnemiesNearCount + 1
+					
+						if GetDistance(I) < EnemyDistance then
+							EnemyDistance = GetDistance(I)
+							NearestEnemy = I
+						end
+					
+						if GetPlayerKills(I - 1) > EnemyKills then
+							EnemyKills = GetPlayerKills(I - 1)
+							NearestLeaderEnemy = I
+						end					
+					else
+						FriendsNearCount = FriendsNearCount + 1
+					
+						if GetDistance(I) < FriendDistance then
+							FriendDistance = GetDistance(I)
+							NearestFriend = I
+						end
+					
+						if GetPlayerKills(I - 1) > FriendKills then
+							FriendKills = GetPlayerKills(I - 1)
+							NearestLeaderFriend = I
+						end	
+					end
+					
+					if HasWorld() then
+						if IsVisible(I)then
+							VisiblePlayersNearCount = VisiblePlayersNearCount + 1
+							
+							if GetDistance(I) < VisiblePlayerDistance then
+								VisiblePlayerDistance = GetDistance(I)
+								NearestVisiblePlayer = I
 							end
-						
-							if GetPlayerKills(I - 1) > EnemyKills then
-								EnemyKills = GetPlayerKills(I - 1)
-								NearestLeaderEnemy = I
-							end					
-						else
-							FriendsNearCount = FriendsNearCount + 1
-						
-							if GetDistance(I) < FriendDistance then
-								FriendDistance = GetDistance(I)
-								NearestFriend = I
+								
+							if GetPlayerKills(I - 1) > VisiblePlayerKills then
+								VisiblePlayerKills = GetPlayerKills(I - 1)
+								NearestVisibleLeaderPlayer = I
 							end
-						
-							if GetPlayerKills(I - 1) > FriendKills then
-								FriendKills = GetPlayerKills(I - 1)
-								NearestLeaderFriend = I
-							end	
+
+							if IsEnemy(I - 1) then
+								VisibleEnemiesNearCount = VisibleEnemiesNearCount + 1
+							
+								if GetDistance(I) < VisibleEnemyDistance then
+									VisibleEnemyDistance = GetDistance(I)
+									NearestVisibleEnemy = I
+								end
+							
+								if GetPlayerKills(I - 1) > VisibleEnemyKills then
+									VisibleEnemyKills = GetPlayerKills(I - 1)
+									NearestVisibleLeaderEnemy = I
+								end					
+							else
+								VisibleFriendsNearCount = VisibleFriendsNearCount + 1
+							
+								if GetDistance(I) < VisibleFriendDistance then
+									VisibleFriendDistance = GetDistance(I)
+									NearestVisibleFriend = I
+								end
+							
+								if GetPlayerKills(I - 1) > VisibleFriendKills then
+									VisibleFriendKills = GetPlayerKills(I - 1)
+									NearestVisibleLeaderFriend = I
+								end	
+							end
 						end
 					end
 				end
@@ -373,6 +451,20 @@ function FindEnemiesAndFriends()
 	HasEnemiesNear = EnemiesNearCount > 0
 	HasFriendsNear = FriendsNearCount > 0
 	HasPlayersNear = PlayersNearCount > 0
+	
+	HasVisibleEnemiesNear = VisibleEnemiesNearCount > 0
+	HasVisibleFriendsNear = VisibleFriendsNearCount > 0
+	HasVisiblePlayersNear = VisiblePlayersNearCount > 0	
+end
+
+function FindVictim()
+	if not HasWorld() then
+		return
+	end
+	
+	Victim = NearestVisibleEnemy
+	
+	HasVictim = Victim ~= nil
 end
 
 function FindStatusIconByName(AName)
@@ -385,9 +477,9 @@ function FindStatusIconByName(AName)
 	return nil
 end
 
-function FindResourceModelByIndex(AIndex)
+function FindResourceByIndex(AIndex, AType)
 	for I = 0, GetResourcesCount() - 1 do
-		if GetResourceType(I) == RT_MODEL then
+		if GetResourceType(I) == AType then
 			if GetResourceIndex(I) == AIndex then
 				return I
 			end
@@ -400,7 +492,7 @@ end
 function FindActiveEntityByModelName(AModelName)
 	for I = 0, GetEntitiesCount() - 1 do
 		if IsEntityActive(I) then
-			R = FindResourceModelByIndex(GetEntityModelIndex(I))
+			local R = FindResourceByIndex(GetEntityModelIndex(I), RT_MODEL)
 			
 			if R ~= nil then
 				if string.sub(GetResourceName(R), 1, string.len(AModelName)) == AModelName then
@@ -414,10 +506,22 @@ function FindActiveEntityByModelName(AModelName)
 end
 
 function GetModelGabaritesCenter(AModel)
-	MinS = Vec3.New(GetWorldModelMinS(AModel))
-	MaxS = Vec3.New(GetWorldModelMaxS(AModel))
-
-	D = Vec3Line.New(MinS.X, MinS.Y, MinS.Z, MaxS.X, MaxS.Y, MaxS.Z)
+	local MinS = Vec3.New(GetWorldModelMinS(AModel))
+	local MaxS = Vec3.New(GetWorldModelMaxS(AModel))
 	
-	return Vec3LineCenter(D)
+	local D = Vec3Line.New(MinS.X, MinS.Y, MinS.Z, MaxS.X, MaxS.Y, MaxS.Z)
+	
+	return D:Center()
+end
+
+function GetWalkSpeed()
+	if (GetGameDir() == 'cstrike') or (GetGameDir() == 'czero') then
+		return 130
+	else
+		print('GetWalkSpeed: unknown mod')
+	end
+end
+
+function HasLongJump()
+	return string.find(GetClientPhysInfo(), '\\slj\\1') ~= nil
 end

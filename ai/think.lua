@@ -9,6 +9,8 @@
 	KNIFE_ALTERNATIVE_ATTACK_DISTANCE = KNIFE_PRIMARY_ATTACK_DISTANCE / 1.5
 
 	OBJECTIVE_LOOKING_AREA_OFFSET = 2;
+
+	NEAR_RADIUS = 300
 	
 -- movement
 
@@ -16,28 +18,31 @@
 	SlowJumpTime = 0
 	
 	ScenarioType = {
+		None = 0,
+		
 		Walking = 1, -- randomly walk on navigation map, nothing more
+		Following = 2,
+		Collecting = 3,
 		
 		-- cstrike, czero scenarios:
 		
-		PlantingBomb = 2, -- run to random bomb place
-		DefusingBomb = 3, -- search planted c4 at bomb places
+		PlantingBomb = 4, -- run to random bomb place
+		DefusingBomb = 5, -- search planted c4 at bomb places
 		
-		-- DefendingBomb = 4 -- find and stay near planted c4 at bomb place (terrorist)
+		-- DefendingBomb = 5 -- find and stay near planted c4 at bomb place (terrorist)
 							 -- or find and stay near dropped c4 (backpack) (counter-terrorist)
-		SearchingBomb = 5 -- if bomb was dropped - i need to pick up it (terrorist)
 		
-		-- EscapingFromBomb = 6 -- fuck you
+		SearchingBomb = 6, -- if bomb was dropped - i need to pick up it (terrorist)
+		
+		-- EscapingFromBomb = 7 -- fuck you
 		
 		-- TODO: add hostages rescuing scenarios for cstrike, czero
 		
 		-- TODO: add VIP escaping scenario for cstrike, czero 
-		
 	}
 	
-	Scenario = ScenarioType.Walking
-	ChainScenarion = ScenarioType.Walking
-	LastScenarioChangeTime = 0
+	Scenario = ScenarioType.None
+	ChainScenarion = ScenarioType.None
 
 	Area = nil
 	PrevArea = nil
@@ -45,7 +50,7 @@
 
 	Chain = {}
 	ChainIndex = 0
-	ChainFinalPoint = {}
+	ChainFinalPoint = Vec3.New()
 
 	STUCK_CHECK_PERIOD = 500
 	LastStuckMonitorTime = 0
@@ -53,12 +58,21 @@
 	LastStuckCheckTime = 0
 	StuckWarnings = 0
 	UnstuckWarnings = 0
-	StuckOrigin = {}
+	StuckOrigin = Vec3.New()
 	TryedToUnstuck = false
+	
+	FollowingPlayer = nil
+	
+	DestinationArea = nil
+	DestinationSpot = nil
+	
+	TakingSpotTime = 0
+	
+	WalkNearArea = nil
 
 -- look
 
-	LookPoint = {}
+	LookPoint = Vec3.New()
 	
 -- weapons
 
@@ -77,12 +91,19 @@
 	IsDefusingBomb = false
 
 	NeedToDestroy = false
-	BreakablePosition = {}
+	BreakablePosition = Vec3.New()
+	
+	IsFlashlightRecharging = false
+	
+	LastScoresCheckTime = 0
+	
+	CollectPosition = Vec3.New()
+	CanCollecting = false
+	CollectingBlackList = {}
+	LastCollectingEntity = 0
+	LastCollectingEntityName = ''
 	
 -- common
-
-	Origin = {}
-
 	IsSlowThink = false
 	LastSlowThinkTime = 0
 
@@ -101,10 +122,16 @@
 		AlternativeKnifeAttack = false,
 		ReloadDelay = 0,
 		DuckWhenPlantingBomb = false,
-		DuckWhenDefusingBomb = false
-		
+		DuckWhenDefusingBomb = false,
+		Psycho = false
+		-- add DoNotWantBeBobmer : drop c4 if we have it, and do not search when it dropped
 	}
 
+	-- TODO: 
+	--		make entity.lua with entity class, 
+	--		put all GetEntity* functions into class,
+	--		declare variables as "NearestEnemy = Entity.New()"
+	
 	NearestEnemy = nil
 	NearestLeaderEnemy = nil
 	EnemiesNearCount = 0
@@ -120,13 +147,32 @@
 	PlayersNearCount = 0
 	HasPlayersNear = false
 
-dofile "ai/utils.lua" 
+	
+	NearestVisibleEnemy = nil
+	NearestVisibleLeaderEnemy = nil
+	VisibleEnemiesNearCount = 0
+	HasVisibleEnemiesNear = false
 
-dofile "ai/movement.lua" 
-dofile "ai/look.lua" 
-dofile "ai/weapons.lua"
-dofile "ai/attack.lua"
-dofile "ai/tasks.lua"
+	NearestVisibleFriend = nil
+	NearestVisibleLeaderFriend = nil
+	VisibleFriendsNearCount = 0
+	HasVisibleFriendsNear = false
+	
+	NearestVisiblePlayer = nil
+	NearestVisibleLeaderPlayer = nil
+	VisiblePlayersNearCount = 0
+	HasVisiblePlayersNear = false
+
+	Victim = nil
+	HasVictim = false
+
+dofile 'ai/utils.lua' 
+
+dofile 'ai/movement.lua' 
+dofile 'ai/look.lua' 
+dofile 'ai/weapons.lua'
+dofile 'ai/attack.lua'
+dofile 'ai/tasks.lua'
 
 function Think()
 	if IsAlive() then
@@ -135,7 +181,7 @@ function Think()
 		end
 		
 		Movement()
-		Look()
+		Look() -- rename to Aim() ?
 		Weapons()
 		Attack()
 		Tasks()
@@ -149,8 +195,6 @@ function Think()
 end 
 
 function PreThink()
-	Origin = Vec3.New(GetOrigin())
-	
 	IsSlowThink = DeltaTicks(LastSlowThinkTime) >= SLOW_THINK_PERIOD
 
 	if IsSlowThink then
@@ -163,14 +207,13 @@ function PreThink()
 	
 	FindCurrentWeapon()
 	FindEnemiesAndFriends()
+	FindVictim()
 end
 
 function PostThink()
-	
 	-- decrease recoil
 	
-	V = Vec3.New(GetViewAngles()) - Vec3.New(GetPunchAngle())
-	SetViewAngles(Vec3Unpack(V))
+	SetViewAngles((Vec3.New(GetViewAngles()) - Vec3.New(GetPunchAngle())):Unpack())
 end
 
 function Spawn()
@@ -178,18 +221,20 @@ function Spawn()
 	
 	NeedToBuyWeapons = true
 	
-	Behavior.Randomize()
+	CollectingBlackList = {}
+	CanCollecting = false
 	
+	Behavior.Randomize()
 	ResetObjectiveMovement()
 	ResetStuckMonitor()
 	
-	print "spawned"
+	print 'spawned'
 end
 
 function Die()
 	IsSpawned = false
 	
-	print "died"
+	print 'died'
 end
 
 function TryToRespawn()
@@ -197,10 +242,10 @@ function TryToRespawn()
 		return
 	end
 	
-	if (GetGameDir() == "valve")
-	or (GetGameDir() == "dmc")
-	or (GetGameDir() == "tfc")
-	or (GetGameDir() == "gearbox") then
+	if (GetGameDir() == 'valve')
+	or (GetGameDir() == 'dmc')
+	or (GetGameDir() == 'tfc')
+	or (GetGameDir() == 'gearbox') then
 		PrimaryAttack()
 	end
 end

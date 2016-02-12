@@ -1,14 +1,12 @@
 
 function Tasks()
 	BuyWeapons()
+	ActivateFlashlight()
+	CheckScores()
 	PlantBomb()
 	DefuseBomb()
-	DestroyBreakables() 
-	
-	-- TODO: add health & armor recharging stations using in HL
-	-- TODO: add hostages using in CS, CZ
-	
-	
+	FindBreakables() 
+	FindItemsToCollect()
 end
 
 function BuyWeapons()
@@ -20,11 +18,11 @@ function BuyWeapons()
 		return
 	end
 	
-	if (GetGameDir() ~= "cstrike") and (GetGameDir() ~= "czero") then
+	if (GetGameDir() ~= 'cstrike') and (GetGameDir() ~= 'czero') then
 		return
 	end
 
-	Icon = FindStatusIconByName("buyzone") -- also, we can using world to find buyzone
+	local Icon = FindStatusIconByName('buyzone') -- also, we can using world to find buyzone
 	
 	if Icon == nil then
 		return
@@ -34,9 +32,61 @@ function BuyWeapons()
 		return
 	end
 	
-	ExecuteCommand("autobuy")
+	ExecuteCommand('autobuy')
 	
 	NeedToBuyWeapons = false
+end
+
+function ActivateFlashlight()
+	if not IsSlowThink then
+		return
+	end
+
+	if IsFlashlightRecharging then
+		if GetFlashBat() >= 95 then
+			IsFlashlightRecharging = false
+		end
+	else
+		if GetFlashBat() <= 5 then
+			IsFlashlightRecharging = true
+		end		
+	end
+	
+	local NeedFlashligth = false
+	
+	-- TODO: add Behavior.UseFlashlight with 85% chance
+	
+	if (GetHideWeapon() & HIDEHUD_FLASHLIGHT == 0) and not IsFlashlightRecharging then
+		if string.len(GetLightStyle(0)) ~= 0 then
+			local S = string.sub(GetLightStyle(0), 1, 1)
+			
+			-- 'a' - black map
+			-- 'm' - default lightning
+			-- 'z' - full bright
+			
+			if (S == 'a') or (S == 'b') or (S == 'c') then -- "s in ['a'..'c']" ?
+				NeedFlashligth = true
+			end
+		end
+	end
+	
+	if (NeedFlashligth and not IsFlashlightActive()) or (not NeedFlashligth and IsFlashlightActive()) then
+		ExecuteCommand('impulse 100')
+	end
+end
+
+function CheckScores() 
+	if not IsSlowThink then
+		return
+	end
+	
+	if DeltaTicks(LastScoresCheckTime) < 5000 then
+		return
+	end
+	
+	LastScoresCheckTime = Ticks()
+	
+	PressButton(Button.SCORE) -- tab button
 end
 
 function PlantBomb()
@@ -46,11 +96,11 @@ function PlantBomb()
 	
 	IsPlantingBomb = false
 
-	if (GetGameDir() ~= "cstrike") and (GetGameDir() ~= "czero") then	
+	if (GetGameDir() ~= 'cstrike') and (GetGameDir() ~= 'czero') then	
 		return
 	end
 	
-	Icon = FindStatusIconByName("c4") -- also, we can using world to find c4 zone
+	local Icon = FindStatusIconByName('c4') -- also, we can using world to find c4 zone
 	
 	if Icon == nil then
 		return
@@ -80,40 +130,40 @@ function DefuseBomb()
 
 	IsDefusingBomb = false
 
-	if (GetGameDir() ~= "cstrike") and (GetGameDir() ~= "czero") then	
+	if (GetGameDir() ~= 'cstrike') and (GetGameDir() ~= 'czero') then	
 		return
 	end
 	
-	if GetPlayerTeam(GetClientIndex()) ~= "CT" then
+	if GetPlayerTeam(GetClientIndex()) ~= 'CT' then
 		return
 	end
 	
-	Entity = FindActiveEntityByModelName("models/w_c4")
+	local C4 = FindActiveEntityByModelName('models/w_c4')
 	
-	if Entity == nil then
+	if C4 == nil then
 		return
 	end
 	
-	if GetGroundedDistance(Entity) > 50 then
+	if GetGroundedDistance(C4) > 50 then
 		return 
 	end
 
 	IsDefusingBomb = true
 
-	LookAtEx(Entity)
+	LookAtEx(C4)
 
 	if Behavior.DuckWhenDefusingBomb then
 		Duck()
 	end
 
-	if GetGroundedDistance(Entity) > 25 then
-		MoveTo(Entity)
+	if GetGroundedDistance(C4) > 25 then
+		MoveTo(C4)
 	end
 
 	PressButton(Button.USE)
 end
 
-function DestroyBreakables()
+function FindBreakables()
 	if not IsSlowThink then
 		return
 	end
@@ -123,43 +173,153 @@ function DestroyBreakables()
 	end
 	
 	-- TODO: we need to destroy objects only when this objects prevent our path
+
+	-- TODO: add Behavior.WantToDestroyBreakables
 	
 	NeedToDestroy = false
 	
-	Distance = MAX_UNITS
+	local Distance = MAX_UNITS
 
 	for I = 0, GetEntitiesCount() - 1 do
-		if IsEntityActive(I) then
-			R = FindResourceModelByIndex(GetEntityModelIndex(I))
-			
-			if R ~= nil then
-				S = GetResourceName(R)
+		if not IsPlayerIndex(I) then
+			if IsEntityActive(I) then
+				local R = FindResourceByIndex(GetEntityModelIndex(I), RT_MODEL)
 				
-				if string.sub(S, 1, 1) == "*" then
-					E = GetWorldEntity("model", GetResourceName(R))
-				
-					if E ~= nil then
-						if GetWorldEntityField(E, "classname") == "func_breakable" then 
-							if GetWorldEntityField(E, "spawnflags") == "" then -- TODO: add extended flag checking 
-								
-								-- TODO: add entity health checking here
-								-- 		 try to break only if health less or equals 200
-								
-								J = tonumber(string.sub(S, 2))
-								
-								C = GetModelGabaritesCenter(J)
-								
-								-- TODO: add explosion radius checking here
-								
-								-- TODO: add Behavior.DestroyExplosions
-								
-								if (GetDistance(Vec3Unpack(C)) < Distance) and IsVisible(Vec3Unpack(C)) then
-									BreakablePosition = C
-									NeedToDestroy = true
-									Distance = GetDistance(Vec3Unpack(C))
-								end	
+				if R ~= nil then
+					local S = GetResourceName(R)
+					
+					if S:sub(1, 1) == '*' then
+						local E = GetWorldEntity('model', GetResourceName(R))
+					
+						if E ~= nil then
+							if GetWorldEntityField(E, 'classname') == 'func_breakable' then 
+								if GetWorldEntityField(E, 'spawnflags') == '' then -- TODO: add extended flag checking 
+									
+									-- TODO: add entity health checking here
+									-- 		 try to break only if health less or equals 200
+									
+									local J = tonumber(S:sub(2))
+									local C = GetModelGabaritesCenter(J)
+									
+									-- TODO: add explosion radius checking here
+									
+									-- TODO: add Behavior.DestroyExplosions
+									
+									if (GetDistance(C:Unpack()) < Distance) and IsVisible(C:Unpack()) then
+										BreakablePosition = C
+										NeedToDestroy = true
+										Distance = GetDistance(C:Unpack())
+									end	
+								end
 							end
 						end
+					end
+				end
+			end
+		end
+	end
+end
+
+function FindItemsToCollect()
+	if not IsSlowThink and not ((Scenario == ScenarioType.Collecting) and not CanCollecting) then -- instant search after picking up
+		return
+	end
+	
+	if not HasWorld() then
+		return
+	end
+
+	if Scenario == ScenarioType.Collecting and CanCollecting then -- already collecting something
+		return
+	end
+	
+	-- TODO: add Behavior.WantToCollectItems
+
+	CanCollecting = false
+	
+	local Distance = MAX_UNITS
+	
+	for I = 0, GetEntitiesCount() - 1 do
+		if not IsPlayerIndex(I) then
+			if IsEntityActive(I) then
+				
+				-- TODO: recode blacklist checking to dedicated function ?
+				
+				local InBlackList = false 
+				
+				for J = 1, #CollectingBlackList do -- TODO: recode this line to foreach
+					if I == CollectingBlackList[J] then
+						InBlackList = true
+						break
+					end
+				end
+				
+				if not InBlackList then
+					local R = FindResourceByIndex(GetEntityModelIndex(I), RT_MODEL)
+					
+					if R ~= nil then
+						local S = GetResourceName(R)
+						
+						if S:sub(1, 1) ~= '*' then
+							S = S:match('(.+)%..+')
+							S = S:sub(8) -- TODO: delete this line, and make universal 'match' search
+						
+							local Should = false -- should pick up ?
+							
+							if GetGameDir() == 'valve' then
+								if (S == 'w_weaponbox') 
+							
+								or ((S == 'w_medkit') and (GetHealth() < 100))
+								or ((S == 'w_battery') and (GetBattery() < 100)) 
+								
+								or ((S == 'w_longjump') and not HasLongJump())
+								
+								or ((S == 'w_9mmar') and (not IsWeaponExists(HL_WEAPON_MP5) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_MP5)))
+								or ((S == 'w_9mmhandgun') and (not IsWeaponExists(HL_WEAPON_GLOCK) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_GLOCK)))
+								or ((S == 'w_357') and (not IsWeaponExists(HL_WEAPON_PYTHON) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_PYTHON)))
+								or ((S == 'w_crossbow') and (not IsWeaponExists(HL_WEAPON_CROSSBOW) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_CROSSBOW)))
+								or ((S == 'w_crowbar') and (not IsWeaponExists(HL_WEAPON_CROWBAR) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_CROWBAR)))
+								or ((S == 'w_egon') and (not IsWeaponExists(HL_WEAPON_EGON) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_EGON)))
+								or ((S == 'w_gauss') and (not IsWeaponExists(HL_WEAPON_GAUSS) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_GAUSS)))
+								or ((S == 'w_grenade') and (not IsWeaponExists(HL_WEAPON_HANDGRENADE) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_HANDGRENADE)))
+								or ((S == 'w_hgun') and (not IsWeaponExists(HL_WEAPON_HORNETGUN) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_HORNETGUN)))
+								or ((S == 'w_rpg') and (not IsWeaponExists(HL_WEAPON_RPG) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_RPG)))
+								or ((S == 'w_satchel') and (not IsWeaponExists(HL_WEAPON_SATCHEL) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_SATCHEL)))
+								or ((S == 'w_shotgun') and (not IsWeaponExists(HL_WEAPON_SHOTGUN)  or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_SHOTGUN)))
+								or ((S == 'w_sqknest') and (not IsWeaponExists(HL_WEAPON_SNARK) or not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_SNARK)))
+								
+								or ((S == 'w_9mmarclip') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_MP5))
+								or ((S == 'w_9mmclip') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_GLOCK))
+								or ((S == 'w_357ammo') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_PYTHON))
+								or ((S == 'w_357ammobox') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_PYTHON))
+								or ((S == 'w_argrenade') and not IsWeaponFullSecondaryAmmoAbs(HL_WEAPON_MP5))
+								--or ((S == 'w_chainammo') and not IsWeaponFullPrimaryAmmoAbs()) -- i do not know what is it. TODO: check
+								or ((S == 'w_crossbow_clip') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_CROSSBOW))
+								or ((S == 'w_gaussammo') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_GAUSS))
+								or ((S == 'w_rpgammo') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_RPG))
+								or ((S == 'w_shotbox') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_SHOTGUN))
+								--or ((S == 'w_shotshell') and not IsWeaponFullPrimaryAmmoAbs(HL_WEAPON_SHOTGUN)) -- need confirmation
+								then
+									Should = true
+								end
+							end
+							
+							if Should and (GetDistance(I) < Distance) then
+								if IsReachable(Vec3.New(GetEntityOrigin(I))) then
+									CollectPosition = Vec3.New(GetEntityOrigin(I))
+									CanCollecting = true
+									LastCollectingEntity = I
+									LastCollectingEntityName = S
+									Distance = GetDistance(I)
+								else
+									table.insert(CollectingBlackList, I)
+								end
+							end
+						else
+							table.insert(CollectingBlackList, I)
+						end
+					else
+						table.insert(CollectingBlackList, I)
 					end
 				end
 			end

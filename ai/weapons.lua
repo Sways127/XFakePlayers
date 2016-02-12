@@ -37,6 +37,10 @@ function ReloadWeapon()
 end
 
 function ChooseBestWeapon()
+	if Idle then
+		return
+	end
+	
 	if IsReloading() then
 		return
 	end
@@ -44,27 +48,35 @@ function ChooseBestWeapon()
 	if IsPlantingBomb then
 		return
 	end
+	
+	if IsDefusingBomb then
+		return
+	end
 
-	if GetGameDir() == "valve" then
+	if GetGameDir() == 'valve' then
 		ChooseBestWeapon_HL()
-	elseif (GetGameDir() == "cstrike") or (GetGameDir() == "czero") then
+	elseif (GetGameDir() == 'cstrike') or (GetGameDir() == 'czero') then
 		ChooseBestWeapon_CS()
 	end
 end
 
 function ChooseBestWeapon_HL()
-	Crowbar = GetWeaponByAbsoluteIndex(HL_WEAPON_CROWBAR)
-	Best = FindHeaviestWeapon(HasEnemiesNear or NeedToDestroy)
+	local Crowbar = GetWeaponByAbsoluteIndex(HL_WEAPON_CROWBAR)
+	local Best = FindHeaviestWeapon(--[[HasVictim or NeedToDestroy]]false)
 	
-	ChooseWeapon(Best)
+	if Behavior.Psycho then
+		ChooseWeapon(Crowbar)
+	else
+		ChooseWeapon(Best)
+	end
 end
 
 function ChooseBestWeapon_CS()
-	Rifle = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_RIFLE)
-	Pistol = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_PISTOL)
-	Knife = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_KNIFE)
+	local Rifle = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_RIFLE)
+	local Pistol = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_PISTOL)
+	local Knife = FindHeaviestWeaponInSlot(CS_WEAPON_SLOT_KNIFE)
 	
-	if HasEnemiesNear or NeedToDestroy then
+	if HasVictim or NeedToDestroy then
 		if CanUseWeapon(Rifle, true) then
 			ChooseWeapon(Rifle)
 		elseif CanUseWeapon(Pistol, true) then

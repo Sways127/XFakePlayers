@@ -49,11 +49,12 @@ function PrimitiveMovement()
 end
 
 function ObjectiveMovement()
-	if GetMaxSpeed() <= 1 then
-		return
+	if GetMaxSpeed() <= 1 then -- we at freezetime ?
+		ResetStuckMonitor()
 	end
 	
-	A = GetNavArea() 
+	local A = GetNavArea() 
+	
 	IsAreaChanged = Area ~= A
 	
 	if IsAreaChanged then
@@ -65,7 +66,7 @@ function ObjectiveMovement()
 		Duck()
 	end
 	
-	if IsSlowThink then
+	if IsSlowThink or (Scenario == ScenarioType.None) then
 		UpdateScenario()
 	end
 	
@@ -73,16 +74,33 @@ function ObjectiveMovement()
 		ResetObjectiveMovement()
 	end
 	
+	-- simple
+	
 	if Scenario == ScenarioType.Walking then
 		ObjectiveWalking()
+		
+	elseif Scenario == ScenarioType.Following then
+		ObjectiveFollowing()
+		
+	elseif Scenario == ScenarioType.Collecting then
+		ObjectiveCollecting()	
+	
+	
+	-- specialized
+	
+	-- cstrike, czero
+	
 	elseif Scenario == ScenarioType.PlantingBomb then
 		ObjectivePlantingBomb()
+		
 	elseif Scenario == ScenarioType.DefusingBomb then
 		ObjectiveDefusingBomb()
+		
 	elseif Scenario == ScenarioType.SearchingBomb then
 		ObjectiveSearchingBomb()
+	
 	else
-		print("ObjectiveMovement: unknown scenario " .. Scenario)
+		print('ObjectiveMovement: unknown scenario ' .. Scenario)
 	end
 end
 
@@ -108,13 +126,13 @@ function CheckStuckMonitor()
 	
 	LastStuckCheckTime = Ticks()
 	
+	local Divider = 3
+	
 	if IsCrouching() then
-		Divider = 5
-	else
-		Divider = 3
+		Divider = 6
 	end
 	
-	if GetDistance(Vec3Unpack(StuckOrigin)) < GetMaxSpeed() / Divider then 
+	if GetDistance(StuckOrigin:Unpack()) < GetMaxSpeed() / Divider then 
 		StuckWarnings = StuckWarnings + 1
 	else
 		StuckWarnings = StuckWarnings - 1
@@ -141,7 +159,7 @@ function CheckStuckMonitor()
 	if StuckWarnings >= 3 then
 		if TryedToUnstuck then
 			ResetObjectiveMovement()
-			TryedToUnstuck = false 
+			TryedToUnstuck = false
 		else
 			DuckJump()
 			ResetStuckMonitor()
@@ -149,10 +167,10 @@ function CheckStuckMonitor()
 		end
 	end
 	
-	StuckOrigin = Origin
+	StuckOrigin = Vec3.New(GetOrigin())
 end
 
-function MoveOnChain()
+function MoveOnChain(AFinalRadius) -- return false when finished or movement ruined (stucked, moved out of chain)
 	CheckStuckMonitor()
 	
 	if not HasChain() then
@@ -170,26 +188,38 @@ function MoveOnChain()
 		end
 	end
 	
-	Next = Chain[ChainIndex]
-	Last = Chain[#Chain]
+	local Next = Chain[ChainIndex]
+	local Last = Chain[#Chain]
 	
 	if Area == Last then
-		if GetGroundedDistance(Vec3Unpack(ChainFinalPoint)) > HUMAN_WIDTH then
-			MoveTo(Vec3Unpack(ChainFinalPoint))
+		local Finished = false
+		
+		if AFinalRadius then
+			Finished = GetGroundedDistance(ChainFinalPoint:Unpack()) < AFinalRadius
 		else
+			Finished = GetGroundedDistance(ChainFinalPoint:Unpack()) < HUMAN_WIDTH -- default final radius
+		end
+		
+		if Finished then
 			return false
+		else
+			MoveTo(ChainFinalPoint:Unpack())
 		end
 	else
 		if Area == Next then
 			ChainIndex = ChainIndex + 1
 			MoveOnChain()
 		else
-			if IsNavAreaConnected(Area, Next) then			
+			if IsNavAreaConnected(Area, Next) then	
+				local Origin = Vec3.New(GetOrigin())
+				local BestPoint = Vec3.New()
+				
 				if ChainIndex == #Chain then
 					BestPoint = ChainFinalPoint
 				else
 					for I = ChainIndex, #Chain - 1 do
-						Finished = false
+						local Finished = false
+						local Portal = Vec3.New() 
 						
 						if IsNavAreaConnected(Chain[I], Chain[I + 1]) then
 							Portal = Vec3.New(GetNavAreaPortal(Chain[I], Chain[I + 1]))
@@ -197,13 +227,13 @@ function MoveOnChain()
 							BestPoint = Vec3.New(GetNavAreaCenter(Next))
 							break
 						end
-						
-						Path = Vec2Line.New(Origin.X, Origin.Y, Portal.X, Portal.Y)
+								
+						local Path = Vec2Line.New(Origin.X, Origin.Y, Portal.X, Portal.Y)
 						
 						for J = ChainIndex + 1, I do
-							Window = Vec3Line.New(GetNavAreaWindow(Chain[J - 1], Chain[J]))
+							local Window = Vec3Line.New(GetNavAreaWindowEx(Chain[J - 1], Chain[J]))
 							
-							if not IsVecLinesIntersectedIn2D(Window, Path) then
+							if not Window:IsIntersect2D(Path) then
 								Finished = true
 								break
 							end
@@ -217,12 +247,12 @@ function MoveOnChain()
 					end
 				end
 				
-				Portal = Vec3.New(GetNavAreaPortal(Area, Next, Origin.X, Origin.Y, Origin.Z, BestPoint.X, BestPoint.Y, BestPoint.Z))
+				local Portal = Vec3.New(GetNavAreaPortal(Area, Next, Origin.X, Origin.Y, Origin.Z, BestPoint.X, BestPoint.Y, BestPoint.Z))
 				
-				if GetDistance2D(Vec3Unpack(Portal)) > HUMAN_WIDTH + HUMAN_WIDTH_HALF then
-					MoveTo(Vec3Unpack(Portal))
+				if GetDistance2D(Portal:Unpack()) > HUMAN_WIDTH * 1.5 then
+					MoveTo(Portal:Unpack())
 				else 
-					MoveTo(Vec3Unpack(BestPoint))
+					MoveTo(BestPoint:Unpack())
 					
 					if ((GetNavAreaFlags(Area) & NAV_AREA_NO_JUMP == 0) and not IsNavAreaBiLinked(Area, Next)) -- to prevent erroneous jumps - we need to add height comparing between two areas
 					or (GetNavAreaFlags(Next) & NAV_AREA_JUMP > 0) -- area must be small for working, add checking for area sizes
@@ -238,7 +268,7 @@ function MoveOnChain()
 				if IsSlowThink and IsOnGround() then
 					return false
 				else
-					MoveTo(Vec3Unpack(Vec3.New(GetNavAreaCenter(Next))))
+					MoveTo(GetNavAreaCenter(Next)) 
 				end
 			end
 		end
@@ -247,14 +277,18 @@ function MoveOnChain()
 	return true
 end
 
-function BuildChain(AFinalPoint)
+function BuildChain(ADestination, AHintText)
 	ResetObjectiveMovement()
 	ResetStuckMonitor()
-	
-	Chain = {GetNavChain(Area, GetNavArea(Vec3Unpack(AFinalPoint)))}
+
+	Chain = {GetNavChain(Area, GetNavArea(ADestination:Unpack()))}
 	
 	if HasChain() then
-		ChainFinalPoint = AFinalPoint
+		if AHintText then
+			print(AHintText .. ' ' .. GetNavAreaName(Chain[#Chain]))
+		end
+
+		ChainFinalPoint = ADestination
 		ChainScenario = Scenario
 		return true
 	else	
@@ -262,28 +296,106 @@ function BuildChain(AFinalPoint)
 	end
 end
 
-function BuildChainEx(AHintText, AFinalPoint)
-	if BuildChain(AFinalPoint) then
-		print(AHintText .. " " .. GetNavAreaName(Chain[#Chain]))
+function BuildChainToArea(AArea, AHintText)
+	return BuildChain(Vec3.New(GetNavAreaCenter(AArea)), AHintText)
+end
 
-		return true
+function ObjectiveMoveTo(ADestination, AFinalRadius) -- return false when finished
+	local Finished = false
+	
+	if AFinalRadius then
+		Finished = GetDistance(ADestination:Unpack()) <= AFinalRadius
 	else
+		Finished = GetDistance(ADestination:Unpack()) <= HUMAN_WIDTH * 1.5
+	end
+
+	if Finished then
 		return false
+	end
+	
+	if ((ChainFinalPoint ~= ADestination) and IsSlowThink) or (HasChain() and (Chain[#Chain] ~= GetNavArea(ADestination:Unpack()))) then
+		ResetObjectiveMovement()
+	end
+	
+	if not MoveOnChain(AFinalRadius) then
+		BuildChain(ADestination)
+		MoveOnChain(AFinalRadius)
+	end
+	
+	return true
+end
+
+function TakeSpot(ADestination) -- return false wher spot reached
+	if not ObjectiveMoveTo(ADestination, HUMAN_WIDTH_HALF) then
+		Duck()
+		return false
+	end
+
+	if GetGroundedDistance(ADestination:Unpack()) <= 100 then
+		Duck()
+	end
+	
+	return true
+end
+
+function Follow(ADestination) 
+	ObjectiveMoveTo(ADestination, 250) -- TODO: write better code later
+end
+
+function IsReachable(ADestination)
+	local C = {GetNavChain(Area, GetNavArea(ADestination:Unpack()))}
+
+	return #C > 0
+end
+
+----------------------------------------------------
+------------------ SCENARIOS -----------------------
+----------------------------------------------------
+
+function ObjectiveWalking(AHintText)
+	if not MoveOnChain() then
+		local S = 'walking to'
+		
+		if AHintText then
+			S = AHintText
+		end
+		
+		BuildChainToArea(GetRandomNavArea(), S)
 	end
 end
 
-function BuildChainToArea(ADestinationArea)
-	return BuildChain(Vec3.New(GetNavAreaCenter(ADestinationArea)))
+function ObjectiveFollowing() -- test
+	if HasPlayersNear then
+		Follow(Vec3.New(GetPlayerOrigin(NearestPlayer - 1)))
+	end
 end
 
-function BuildChainToAreaEx(AHintText, ADestinationArea)
-	return BuildChainEx(AHintText, Vec3.New(GetNavAreaCenter(ADestinationArea)))
-end
-
-
-function ObjectiveWalking()
+function ObjectiveCollecting()
+	if GetDistance(CollectPosition:Unpack()) <= HUMAN_WIDTH * 1.5 then
+		CanCollecting = false
+	end
+	
+	if not CanCollecting then
+		return
+	end
+	
+	local A = nil
+	
+	if HasChain() then
+		A = Chain[#Chain]
+	end
+	
+	if ((ChainFinalPoint ~= CollectPosition) and IsSlowThink) or (HasChain() and (Chain[#Chain] ~= GetNavArea(CollectPosition:Unpack()))) then
+		ResetObjectiveMovement()
+	end
+	
 	if not MoveOnChain() then
-		BuildChainToAreaEx("walking to", GetRandomNavArea())
+		if A == GetNavArea(CollectPosition:Unpack()) then
+			table.insert(CollectingBlackList, LastCollectingEntity)
+			CanCollecting = false    
+		else
+			BuildChain(CollectPosition, 'collecting ' .. LastCollectingEntityName:sub(3) .. ' at')
+		end
 	end
 end
 
@@ -292,29 +404,23 @@ function ObjectivePlantingBomb()
 		return
 	end
 	
-	if IsAreaChanged then
-	--	AI_Area.Flags := AI_Area.Flags or NAV_AREA_PLANTER_MARK;
-	end
-
 	if not MoveOnChain() and IsSlowThink then
 		if HasWorld() then
-			E = GetWorldRandomEntityByClassName("func_bomb_target")
+			local E = GetWorldRandomEntityByClassName('func_bomb_target')
 
-			if E == -1 then
+			if E == nil then
 				--do nav searching
 				return
 			end
 
-			M = GetModelForEntity(E)
+			local M = GetModelForEntity(E)
 			
-			if M == -1 then
+			if M == nil then
 				-- do nav searching
 				return
 			end
 			
-			C = GetModelGabaritesCenter(M)
-			
-			BuildChainEx("walking to bomb place at", C)
+			BuildChain(GetModelGabaritesCenter(M), 'walking to bomb place at')
 		else
 			-- TODO: 
 			-- we can find bomb places by navigation map:
@@ -327,37 +433,59 @@ function ObjectivePlantingBomb()
 			
 			-- it is not 100% searching method to find bomb place
 			-- but it can work without *.bsp
+			
+			ObjectiveWalking()
 		end
 	end
 end
 
 function ObjectiveDefusingBomb() 
-	--[[if not IsBombPlanted then
+	if not IsBombPlanted then
 		return
 	end
 	
-	C4 = FindActiveEntityByModelName("models/w_c4")
+	local C4 = nil
 	
-	if not MoveOnChain() then
+	if IsSlowThink then -- search c4 while running to potential bombplace
+		C4 = FindActiveEntityByModelName('models/w_c4')
+		
+		-- if we found c4 and c4 position isn't equals 
+		-- to our destination position - recalculate our path
+		
 		if C4 ~= nil then
-			O = Vec3.New(GetEntityOrigin(C4))
-			BuildChainEx("walking to bomb at", O)
-		else
-			BuildChainToAreaEx("searching bomb at", GetAreaForSearching)
-		end
-	else
-		if C4 ~= nil then
-			O = Vec3.New(GetEntityOrigin(C4))
-			
-			if O ~= ChainFinalPoint then
-				ResetObjectiveMovement()
+			if Vec3.New(GetEntityOrigin(C4)) ~= ChainFinalPoint then
+				ResetObjectiveMovement() 
 			end
 		end
-	end]]
+	end
 	
-	-- fuck this !!!
-	
-	ObjectiveWalking()
+	if not MoveOnChain() and IsSlowThink then
+		if C4 ~= nil then
+			BuildChain(Vec3.New(GetEntityOrigin(C4)), 'walking to bomb at')
+		else
+			if HasWorld() then
+				local E = GetWorldRandomEntityByClassName('func_bomb_target')
+
+				if E == nil then
+					--do nav searching
+					return
+				end
+
+				local M = GetModelForEntity(E)
+				
+				if M == nil then
+					-- do nav searching
+					return
+				end
+				
+				BuildChain(GetModelGabaritesCenter(M), 'walking to bomb place at')
+			else
+				-- do nav searching here as in "ObjectivePlantingBomb"
+				
+				ObjectiveWalking()
+			end
+		end
+	end
 end
 
 function ObjectiveSearchingBomb()
@@ -365,19 +493,23 @@ function ObjectiveSearchingBomb()
 		return
 	end
 	
-	C4 = FindActiveEntityByModelName('models/w_backpack');
-	
-	if C4 ~= nil then
-		O = Vec3.New(GetEntityOrigin(C4))
-	else
-		O = Vec3.New(GetBombStatePosition()) -- find bomb on radar
-	end
-	
-	if not MoveOnChain() then
-		BuildChainEx("searching bomb at", O)
-	else
-		if (O ~= ChainFinalPoint) and IsSlowThink then
+	local O = Vec3.New()
+
+	if IsSlowThink then
+		local C4 = FindActiveEntityByModelName('models/w_backpack')
+		
+		if C4 ~= nil then
+			O = Vec3.New(GetEntityOrigin(C4))
+		else
+			O = Vec3.New(GetBombStatePosition()) -- find bomb on radar
+		end
+		
+		if O ~= ChainFinalPoint then
 			ResetObjectiveMovement()
 		end
+	end
+		
+	if not MoveOnChain() and IsSlowThink then -- rebuild only in slowthink
+		BuildChain(O, 'searching bomb at')
 	end
 end

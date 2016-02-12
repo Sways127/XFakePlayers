@@ -10,10 +10,13 @@
 		Frame()
 
 		OnTrigger(ATrigger)
+		
+		OnSound(AIndex, AEntity, AChannel, AVolume, APitch, AAttenuation, AFlags, X, Y, Z)
 
+		
+	Available methods:
 
--- available methods:
-
+	
 	ExecuteCommand(command: str)
 		executes command on client
 
@@ -23,133 +26,110 @@
 	GetTime(): float
 		svc_time
 
+	-- svc_clientdata
+	
+    GetClientOrigin(): float[3]
+
+    GetClientVelocity(): float[3]
+
+    GetClientViewModel(): int
+
+    GetClientPunchAngle(): float[3]
+
+    GetClientFlags(): int
+
+    GetClientWaterLevel(): int
+
+    GetClientWaterType(): int
+
+    GetClientViewOffset(): float[3]
+
+    GetClientHealth(): float
+
+    GetClientInDuck(): int
+
+    GetClientWeapons(): int
+
+    GetClientTimeStepSound(): int
+
+    GetClientDuckTime(): int
+
+    GetClientSwimTime(): int
+
+    GetClientWaterJumpTime(): int
+
+    GetClientMaxSpeed(): float
+
+    GetClientFOV(): float
+
+    GetClientWeaponAnim(): int
+
+    GetClientID(): int
+
+    GetClientAmmoShells(): int
+
+    GetClientAmmoNails(): int
+
+    GetClientAmmoCells(): int
+
+    GetClientAmmoRockets(): int
+
+    GetClientNextAttack(): float
+
+    GetClientTFState(): int
+
+    GetClientPushMSec(): int
+
+    GetClientDeadFlag(): int
+
+    GetClientPhysInfo(): str
+
+    GetClientIUser1(): int
+
+    GetClientIUser2(): int
+
+    GetClientIUser3(): int
+
+    GetClientIUser4(): int
+
+    GetClientFUser1(): float
+
+    GetClientFUser2(): float
+
+    GetClientFUser3(): float
+
+    GetClientFUser4(): float
+
+    GetClientVUser1(): float[3]
+
+    GetClientVUser2(): float[3]
+
+    GetClientVUser3(): float[3]
+
+    GetClientVUser4(): float[3]
+	
+	-- svc_serverinfo
+	
 	GetProtocol(): int
-		svc_serverinfo.protocol 
 
 	GetMaxPlayers(): int
-		svc_serverinfo.maxplayers
 
 	GetClientIndex(): int
-		svc_serverinfo.index
 
 	GetGameDir(): str
-		svc_serverinfo.gamedir
 
 	GetMap(): str
-		svc_serverinfo.map
 
-	GetMaxEx(): str
+	GetMapEx(): str
 		extended version of GetMap() - map name truncated here
 
-	GetIntermission(): int
-		svc_intermission state
-
-	IsPaused(): bool
-		svc_setpause state
-
-	MoveTo(pos: float[3])
-	MoveTo(ent: int)
-
-
-	MoveOut(pos: float[3])
-	MoveOut(ent: int)
-
-	LookAt(pos: float[3])
-	LookAt(ent: int)
-
-	GetViewAngles(): float[3]
-	SetViewAngles(angles: float[3])
-
-	LookAtEx(pos: float[3]) 
-	LookAtEx(ent: int) 
-	lookat equivalent with some smoothing
-
-	PressButton(Button)
-	UnPressButton(Button)
-	IsButtonPressed(Button): bool
-
-	GetOrigin(): float[3]
-
-	GetVelocity(): float[3]
-
-	GetPunchAngle(): float[3]
-
-	GetWeaponAbsoluteIndex(): int
-		clientdata.id
-
-	GetDistance(pos: float[3]): float
-	GetDistance(ent: int): float
-
-	GetDistance2D(pos\ent: float[3]\int): float
-
-	IsWeaponExists(absolute_weapon_index: int): bool
-		this using absolute index, not weaponlist index
-
-	IsCrouching(): bool
-
-	IsOnGround(): bool
-
-	IsSpectator(): bool
-
-	HasWeaponData(absolute_weapon_index): bool
-
-	GetWeaponDataField(weapon_index: int; field: WeaponDataField): any
-		get field from weapondata_t array for specific weapon
+	GetLightStylesCount(): int
+		length of lightstyles array, 
+		equals 64 in protocol 48
+		svencoop 5 has increased to 255 from 64
 		
-]]
-	WeaponDataField = {  -- TODO: delete this shit. really.
-		ID = 1, -- int
-		Clip = 2, -- int
-		NextPrimaryAttack = 3, -- float
-		NextSecondaryAttack = 4, -- float
-		TimeWeaponIdle = 5, -- float
-		InReload = 6, -- int
-		InSpecialReload = 7, -- int
-		NextReload = 8, -- float
-		PumpTime = 9, -- float
-		ReloadTime = 10, -- float
-		AimedDamage = 11, -- float
-		NextAimBonus = 12, -- float
-		InZoom = 13, -- int
-		WeaponState = 14, -- int
-		IUser1 = 15, -- int
-		IUser2 = 16, -- int
-		IUser3 = 17, -- int
-		IUser4 = 18, -- int
-		FUser1 = 19, -- float
-		FUser2 = 20, -- float
-		FUser3 = 21, -- float
-		FUser4 = 22 -- float	
-	}
-
---[[	
-	IsReloading(): bool
-
-	GetMaxSpeed(): float
-		clientdata.maxspeed & movevars.maxspeed
-
-	CanAttack(): boolean
-		is clientdata_t.nextattack <= 0
-
-	IsAlive(): bool
-
-	PrimaryAttack()
-		equivalent for PressButton(ATTACK)
-
-	SecondaryAttack()
-		equivalent for PressButton(ATTACK2)
-
-	FastPrimaryAttack()
-
-	FastSecondaryAttack()
-
-	Jump()
-		equivalent for PressButton(JUMP)
-
-	Duck()
-		equivalent for PressButton(DUCK)
-
-	DuckJump()	
+	GetLightStyle(index: int): str
+		return lightstyle string from lightstyles array (svc_lightstyles) under the index
 
 	GetResourcesCount(): int
 
@@ -163,6 +143,12 @@
 
 	GetResourceFlags(index: int): int
 
+	GetIntermission(): int
+		svc_intermission state
+
+	IsPaused(): bool
+		svc_setpause state
+		
 	GetPlayersCount(): int
 		length of players array
 
@@ -202,6 +188,9 @@
 		it using allocated entity for this player to resolve origin
 		also, if entity isn't active - using GetRadar() instead
 
+	GetPlayerName(player_index): str
+		svc_updateuserinfo 
+		
 	IsPlayerAlive(player_index): bool
 		based on GetPlayerScoreAttrib(), it will check bit flag SCORE_ATTRIB_FLAG_DEAD
 		working only for cstrike & czero
@@ -337,6 +326,118 @@
 
 	IsEntityActive(index: int): int
 		is entity currenrly spawned for actor
+		
+	IsPlayerIndex(index: int): bool
+
+	MoveTo(ent: int)
+	MoveTo(ent: int, speed: float)
+	MoveTo(pos: float[3])
+	MoveTo(pos: float[3], speed: float)
+
+	MoveOut(ent: int)
+	MoveOut(ent: int, speed: float)
+	MoveOut(pos: float[3])
+	MoveOut(pos: float[3], speed: float)
+
+	LookAt(pos: float[3])
+	LookAt(ent: int)
+
+	GetViewAngles(): float[3]
+	SetViewAngles(angles: float[3])
+
+	LookAtEx(pos: float[3]) 
+	LookAtEx(ent: int) 
+	lookat equivalent with some smoothing
+
+	PressButton(Button)
+	UnPressButton(Button)
+	IsButtonPressed(Button): bool
+
+	GetOrigin(): float[3]
+
+	GetVelocity(): float[3]
+
+	GetPunchAngle(): float[3]
+
+	GetWeaponAbsoluteIndex(): int
+		clientdata.id
+
+	GetDistance(pos: float[3]): float
+	GetDistance(ent: int): float
+
+	GetDistance2D(pos\ent: float[3]\int): float
+
+	IsWeaponExists(absolute_weapon_index: int): bool
+		this using absolute index, not weaponlist index
+
+	IsCrouching(): bool
+
+	IsOnGround(): bool
+
+	IsSpectator(): bool
+
+	HasWeaponData(absolute_weapon_index): bool
+
+	GetWeaponDataField(weapon_index: int; field: WeaponDataField): any
+		get field from weapondata_t array for specific weapon
+		
+]]
+	WeaponDataField = {  -- TODO: delete this shit. really.
+		ID = 1, -- int
+		Clip = 2, -- int
+		NextPrimaryAttack = 3, -- float
+		NextSecondaryAttack = 4, -- float
+		TimeWeaponIdle = 5, -- float
+		InReload = 6, -- int
+		InSpecialReload = 7, -- int
+		NextReload = 8, -- float
+		PumpTime = 9, -- float
+		ReloadTime = 10, -- float
+		AimedDamage = 11, -- float
+		NextAimBonus = 12, -- float
+		InZoom = 13, -- int
+		WeaponState = 14, -- int
+		IUser1 = 15, -- int
+		IUser2 = 16, -- int
+		IUser3 = 17, -- int
+		IUser4 = 18, -- int
+		FUser1 = 19, -- float
+		FUser2 = 20, -- float
+		FUser3 = 21, -- float
+		FUser4 = 22 -- float	
+	}
+
+--[[	
+	IsReloading(): bool
+
+	GetMaxSpeed(): float
+		clientdata.maxspeed & movevars.maxspeed
+
+	CanAttack(): boolean
+		is clientdata_t.nextattack <= 0
+
+	IsAlive(): bool
+	
+	UseEnvironment()
+		equivalent for PressButton(USE)
+	
+	PrimaryAttack()
+		equivalent for PressButton(ATTACK)
+
+	SecondaryAttack()
+		equivalent for PressButton(ATTACK2)
+
+	FastPrimaryAttack()
+
+	FastSecondaryAttack()
+
+	Jump()
+		equivalent for PressButton(JUMP)
+
+	Duck()
+		equivalent for PressButton(DUCK)
+
+	DuckJump()	
 
 	GetGroundedOrigin(): float[3]
 		equivalent for GetOrigin with subtracted human height
@@ -345,8 +446,19 @@
 	GetGroundedDistance(ent: int): float
 		see below
 
+	GetHideWeapon(): int
+		HideWeapon gmsg bit flags
+	
 	GetHealth(): int
 		Health gmsg event
+		
+	GetFlashBat(): int
+		flashligth battery count
+		
+	IsFlashlightActive(): bool
+	
+	GetBattery(): int
+		suit battery (armor in cstrike, czero)
 
 	GetWeaponsCount(): int
 		length of weapon array (WeaponList gmsg event)
@@ -377,8 +489,14 @@
 
 	GetWeaponByAbsoluteIndex(absolute_weapon_index): int
 		return weapon index from weaponlist array (WeaponList gmsg event) for using with extended weapon functions
-		return -1 if weapon isn't exist
+		return nil if weapon isn't exist
 
+	GetStatusValuesCount(): int
+		length of statusicon array
+		
+	GetStatusValue(index: int)int
+		gmsg event StatusIcon
+		
 	GetStatusIconsCount(): int
 		length of status icon array (StatusIcon gmsg event)
 
@@ -394,6 +512,11 @@
 		
 	GetBombStatePlanted(): bool
 		is bomb on radar is planted bomb ?
+		
+	GetRoundTime(): int
+	
+	GetMoney(): int
+		cstrike, czero (maybe other mods)
 	
 	IsTeamPlay(): bool
 		gamemode gmsg event state
@@ -424,7 +547,7 @@
 		search and return absolute nav area index by position
 
 	GetRandomNavArea(): int
-		this will return random nav area from navigation mesh
+		this will return random nav area from navigation mesh (TODO: add GetRandomNavArea(location: str) to find random nav area from given location name)
 
 	GetNavAreaIndex(area: int): int
 		return unique nav area index for given nav area
@@ -470,6 +593,33 @@
 	GetNavAreaWindow(area1, area2: int): float[6]
 		return coords of two points between two connected areas
 
+	GetNavAreaWindowEx(area1, area2: int): float[6]
+		use this for player movement calculation
+	
+	GetNavHidingSpot(): int
+		search and return absolute nav hiding spot index by actor's origin
+
+	GetNavHidingSpot(index: int): int
+		search and return absolute nav hiding spot index by nav hiding spot index
+
+	GetNavHidingSpot(pos: float[3]): int
+		search and return absolute nav hiding spot index by position
+	
+	GetRandomNavHidingSpot(): int
+	
+	GetRandomNavHidingSpot(pos: float[3], radius: float): int
+		return random spot from nav mesh at given position near given radius 
+		return -1 if no hiding spots found in given radius
+	
+	GetNavHidingSpotIndex(spot: int): int
+	
+	GetNavHidingSpotPosition(spot: int): float[3]
+	
+	GetNavHidingSpotFlags(spot: int): int
+	
+	GetNavHidingSpotParent(spot: int): int
+		return absolute area index which consist given hiding spot
+	
 	GetNavChain(area1, area2): array of int
 
 	GetWorldEntitiesCount(): int
@@ -496,7 +646,7 @@
 
 	GetWorldEntity(field, value: str): int
 		return entity absolute index in world with given field and value
-		return -1 if not found
+		return nil if not found
 
 	GetWorldEntities(field, value: str): int
 		returns an array of absolute indexes of entities in world with given field and value
@@ -505,13 +655,13 @@
 		working like GetWorldEntities(.., ..)[Random(Length(GetWorldEntities(.., ..)))]
 
 	GetWorldEntityByClassName(classname: str): int
-		equivalent for GetWorldEntity("classname", ...)
+		equivalent for GetWorldEntity('classname', ...)
 
 	GetWorldEntitiesByClassName(classname: str): int
-		equivalent for GetWorldEntities("classname", ...)
+		equivalent for GetWorldEntities('classname', ...)
 
 	GetWorldRandomEntityByClassName(classname: str): int
-		equivalent for GetWorldRandomEntity("classname", ...)		
+		equivalent for GetWorldRandomEntity('classname', ...)		
 
 	GetWorldEntityField(index: int, field: str): str
 		returns a string data under the field
@@ -520,7 +670,7 @@
 	GetModelForEntity(index: int): int	
 		returns absolute world model index from world models array for model, 
 		who allocated with given entity.
-		returns -1 if entity does not have model or model was not found
+		return nil if entity does not have model or model was not found
 
 	GetWorldModelMinS(index: int): float[3]
 
@@ -537,6 +687,7 @@
 ]]
 
 -- Protocol.pas property
+
 	HUMAN_HEIGHT = 36
 	HUMAN_HEIGHT_HALF = HUMAN_HEIGHT / 2
 
@@ -689,7 +840,7 @@
 	HLWeaponCrowbar = {Weight = HL_WEAPON_CROWBAR_WEIGHT, MaxClip = HL_WEAPON_CROWBAR_MAX_CLIP} -- no ammo
 	HLWeaponGlock = {Weight = HL_WEAPON_GLOCK_WEIGHT, MaxClip = HL_WEAPON_GLOCK_MAX_CLIP, Ammo = HLAmmo9mm}
 	HLWeaponPython = {Weight = HL_WEAPON_PYTHON_WEIGHT, MaxClip = HL_WEAPON_PYTHON_MAX_CLIP, Ammo = HLAmmo357}
-	HLWeaponMP5 = {Weight = HL_WEAPON_MP5_WEIGHT, MaxClip = HL_WEAPON_MP5_WEIGHT, Ammo = HLAmmo9mm}
+	HLWeaponMP5 = {Weight = HL_WEAPON_MP5_WEIGHT, MaxClip = HL_WEAPON_MP5_MAX_CLIP, Ammo = HLAmmo9mm}
 	HLWeaponChainGun = {}
 	HLWeaponCrossbow = {Weight = HL_WEAPON_CROSSBOW_WEIGHT, MaxClip = HL_WEAPON_CROSSBOW_MAX_CLIP, Ammo = HLAmmoBolt}
 	HLWeaponShotgun = {Weight = HL_WEAPON_SHOTGUN_WEIGHT, MaxClip = HL_WEAPON_SHOTGUN_MAX_CLIP, Ammo = HLAmmoBuckShot}
@@ -952,37 +1103,46 @@
 -------------------------------
 	
 	HL_PLAYER_MODELS = {
-		"barney", 
-		"gina", 
-		"gman", 
-		"gordon", 
-		"helmet", 
-		"hgrunt", 
-		"recon", 
-		"robo", 
-		"scientist", 
-		"zombie"
+		'barney', 
+		'gina', 
+		'gman', 
+		'gordon', 
+		'helmet', 
+		'hgrunt', 
+		'recon', 
+		'robo', 
+		'scientist', 
+		'zombie'
 	} 
 	
 	OPFOR_PLAYER_MODELS = {
-		"barney", 
-		"beret", 
-		"cl_suit", 
-		"drill",
-		"fassn", 
-		"gina", 
-		"gman", 
-		"gordon", 
-		"grunt", 
-		"helmet", 
-		"hgrunt", 
-		"massn", 
-		"otis",
-		"recon", 
-		"recruit", 
-		"robo", 
-		"scientist", 
-		"shepard", 
-		"tower", 
-		"zombie"
+		'barney', 
+		'beret', 
+		'cl_suit', 
+		'drill',
+		'fassn', 
+		'gina', 
+		'gman', 
+		'gordon', 
+		'grunt', 
+		'helmet', 
+		'hgrunt', 
+		'massn', 
+		'otis',
+		'recon', 
+		'recruit', 
+		'robo', 
+		'scientist', 
+		'shepard', 
+		'tower', 
+		'zombie'
 	}
+	
+	HIDEHUD_WEAPONS = 1 << 0 -- crosshair, ammo, weapons list
+	HIDEHUD_FLASHLIGHT = 1 << 1 -- flashlight
+	HIDEHUD_ALL = 1 << 2 -- all
+	HIDEHUD_HEALTH = 1 << 3 -- radar, health, armor, +
+	HIDEHUD_TIMER = 1 << 4 -- timer, +
+	HUDEHUD_MONEY = 1 << 5 -- money, +
+	HIDEHUD_CROSSHAIR = 1 << 6 -- crosshair
+	HIDEHUD_7 = 1 << 7 -- + <- ?
